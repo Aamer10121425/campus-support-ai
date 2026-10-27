@@ -1,6 +1,6 @@
 
 import json
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -32,6 +32,51 @@ EXPECTED_COUNTS = {
     SLA: 24,
     ResolutionFeedback: 1000,
 }
+
+
+def add_business_minutes(start: datetime, minutes: int) -> datetime:
+    """Add minutes during weekdays, 09:00-17:00 UTC."""
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+
+    current = start.astimezone(timezone.utc)
+    remaining = minutes
+
+    while remaining > 0:
+        if current.weekday() >= 5:
+            current = (current + timedelta(days=1)).replace(
+                hour=9, minute=0, second=0, microsecond=0
+            )
+            continue
+
+        opening = current.replace(
+            hour=9, minute=0, second=0, microsecond=0
+        )
+        closing = current.replace(
+            hour=17, minute=0, second=0, microsecond=0
+        )
+
+        if current < opening:
+            current = opening
+        elif current >= closing:
+            current = (current + timedelta(days=1)).replace(
+                hour=9, minute=0, second=0, microsecond=0
+            )
+            continue
+
+        available = int(
+            (closing - current).total_seconds() // 60
+        )
+
+        if remaining <= available:
+            return current + timedelta(minutes=remaining)
+
+        remaining -= available
+        current = (current + timedelta(days=1)).replace(
+            hour=9, minute=0, second=0, microsecond=0
+        )
+
+    return current
 
 
 def count_records(session, model):
@@ -236,7 +281,7 @@ def main():
                 "Could not confirm the planted unsupported response."
             )
 
-        # 8. Inspect the planted business-hours SLA case.
+        # 8. Verify the planted business-hours SLA anomaly.
         business_case = anomalies["business_hours_sla_issue"]
 
         business_ticket = session.get(
@@ -244,28 +289,59 @@ def main():
             business_case["ticket_id"],
         )
 
-        business_detected = (
-            business_ticket is not None
-            and business_ticket.due_at is not None
-            and business_ticket.created_at is not None
-            and business_ticket.due_at > business_ticket.created_at
-        )
+        business_detected = False
+
+        if business_ticket is not None and business_ticket.due_at is not None:
+            matching_sla = session.scalars(
+                select(SLA).where(
+                    SLA.category_id == business_ticket.category_id,
+                    SLA.priority == business_ticket.priority,
+                    SLA.business_hours_only.is_(True),
+                )
+            ).first()
+
+            if matching_sla is not None:
+                expected_due = add_business_minutes(
+                    business_ticket.created_at,
+                    matching_sla.resolution_minutes,
+                )
+
+                stored_due = business_ticket.due_at
+                if stored_due.tzinfo is None:
+                    stored_due = stored_due.replace(
+                        tzinfo=timezone.utc
+                    )
+                else:
+                    stored_due = stored_due.astimezone(timezone.utc)
+
+                business_detected = (
+                    abs(
+                        (stored_due - expected_due).total_seconds()
+                    ) > 60
+                )
+
+                print(
+                    f"Stored SLA deadline: {stored_due.isoformat()}"
+                )
+                print(
+                    f"Expected business-hours deadline: "
+                    f"{expected_due.isoformat()}"
+                )
 
         print(
-            f"Business-hours SLA case found: "
+            f"Business-hours SLA violation confirmed: "
             f"{business_detected}"
         )
 
         if business_detected:
             warnings.append(
-                "Business-hours SLA case identified, but a proper "
-                "business-calendar calculation is still required "
-                "to confirm the violation."
+                "Confirmed planted business-hours SLA violation."
             )
         else:
             errors.append(
-                "Could not find the planted business-hours SLA case."
+                "Could not confirm the planted business-hours SLA violation."
             )
+
 
         # 9. Inspect the planted missed-escalation case.
         escalation_case = anomalies["missed_escalation"]

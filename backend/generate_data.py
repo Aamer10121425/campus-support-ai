@@ -28,6 +28,43 @@ OUTPUT_DIR = Path("generated")
 
 random.seed(SEED)
 
+def add_business_minutes(start: datetime, minutes: int) -> datetime:
+    """Add SLA minutes during weekdays, 09:00-17:00 UTC."""
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+
+    current = start.astimezone(timezone.utc)
+    remaining = minutes
+
+    while remaining > 0:
+        if current.weekday() >= 5:
+            current = (current + timedelta(days=1)).replace(
+                hour=9, minute=0, second=0, microsecond=0
+            )
+            continue
+
+        opening = current.replace(hour=9, minute=0, second=0, microsecond=0)
+        closing = current.replace(hour=17, minute=0, second=0, microsecond=0)
+
+        if current < opening:
+            current = opening
+        elif current >= closing:
+            current = (current + timedelta(days=1)).replace(
+                hour=9, minute=0, second=0, microsecond=0
+            )
+            continue
+
+        available = int((closing - current).total_seconds() // 60)
+
+        if remaining <= available:
+            return current + timedelta(minutes=remaining)
+
+        remaining -= available
+        current = (current + timedelta(days=1)).replace(
+            hour=9, minute=0, second=0, microsecond=0
+        )
+
+    return current
 
 def dt(days_ago=0, hours=0):
     return ANCHOR - timedelta(days=days_ago, hours=hours)
@@ -196,7 +233,7 @@ def build_dataset():
             priority = "high"
 
         sla = sla_lookup[(category[0], priority)]
-        due_at = created_at + timedelta(minutes=sla["resolution_minutes"])
+        due_at = add_business_minutes(created_at,sla["resolution_minutes"])
 
         if i == 4:
             # Deliberately wrong: ignores business hours.

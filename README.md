@@ -106,9 +106,15 @@ python -m pytest -v
 
 The initial test run completed with 8 tests passed.
 
-## Audit Limitations
+## Audit Rules and Limitations
 
-The audit endpoint reports potential issues for review. Overdue-ticket and missed-escalation findings use simplified time calculations and should not be treated as confirmed violations of business-hours SLA policies without further verification.
+The `/audit` endpoint checks for expired or unpublished article citations, unauthorized routing, responses without policy-source support, overdue active tickets, business-hours SLA deadline mismatches, and possible missed escalations.
+
+The business-hours calculation assumes Monday through Friday, 09:00–17:00 UTC. Confirm these hours and the escalation thresholds against the institution's actual policies before using the findings operationally.
+
+The included dataset deliberately contains five planted anomalies for validation and demonstration. Other audit findings are diagnostic flags that may require human review; they should not automatically be treated as confirmed policy violations.
+
+The audit response reports full finding counts by rule but limits detailed findings to 500 per rule. A `truncated: true` result means additional detailed findings were omitted from the response.
 
 ## Security
 
