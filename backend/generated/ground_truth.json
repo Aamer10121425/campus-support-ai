@@ -1,0 +1,47 @@
+{
+  "seed": 20261022,
+  "anchor_date": "2026-10-26T12:00:00+00:00",
+  "expected_counts": {
+    "roles": 7,
+    "terms": 3,
+    "requesters": 1000,
+    "categories": 8,
+    "policy_documents": 20,
+    "knowledge_articles": 200,
+    "tickets": 5000,
+    "messages": 20000,
+    "assignments": 5000,
+    "slas": 24,
+    "resolution_feedback": 1000
+  },
+  "anomalies": [
+    {
+      "type": "expired_citation",
+      "ticket_id": "TKT-000001",
+      "article_id": "ART-0001",
+      "expected": "The cited article is expired and must not support the answer"
+    },
+    {
+      "type": "unauthorized_route",
+      "ticket_id": "TKT-000002",
+      "assignment_id": "ASN-000002",
+      "expected": "Assignment should be rejected or escalated for review"
+    },
+    {
+      "type": "unsupported_response",
+      "ticket_id": "TKT-000003",
+      "message_id": "MSG-0000012",
+      "expected": "Response requires verifiable policy evidence"
+    },
+    {
+      "type": "business_hours_sla_issue",
+      "ticket_id": "TKT-000004",
+      "expected": "SLA due time must account for business hours; the injected due time is a simple elapsed-time calculation"
+    },
+    {
+      "type": "missed_escalation",
+      "ticket_id": "TKT-000005",
+      "expected": "High-priority ticket exceeds escalation threshold but has no escalation assignment"
+    }
+  ]
+}
