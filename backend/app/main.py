@@ -699,22 +699,41 @@ def audit_business_rules():
                     ),
                 })
 
+    
     counts = {}
+    severity_counts = {}
+
     for finding in findings:
         rule = finding["rule"]
-        counts[rule] = counts.get(rule, 0) + 1
+        severity = finding.get("severity", "unknown")
 
-    # Keep findings from every rule visible in the API response.
-    # Apply the limit separately to each rule to avoid hiding later rules.
+        counts[rule] = counts.get(rule, 0) + 1
+        severity_counts[severity] = (
+            severity_counts.get(severity, 0) + 1
+        )
+
+    # Limit detailed findings independently for each rule.
     max_per_rule = 500
     returned_findings = []
     returned_by_rule = {}
 
     for finding in findings:
         rule = finding["rule"]
-        if returned_by_rule.get(rule, 0) < max_per_rule:
+        returned_count = returned_by_rule.get(rule, 0)
+
+        if returned_count < max_per_rule:
             returned_findings.append(finding)
-            returned_by_rule[rule] = returned_by_rule.get(rule, 0) + 1
+            returned_by_rule[rule] = returned_count + 1
+
+    returned_counts = {
+        rule: returned_by_rule.get(rule, 0)
+        for rule in counts
+    }
+
+    omitted_counts = {
+        rule: counts[rule] - returned_counts[rule]
+        for rule in counts
+    }
 
     return {
         "audit_status": "completed",
@@ -726,16 +745,18 @@ def audit_business_rules():
         },
         "finding_count": len(findings),
         "findings_by_rule": counts,
+        "findings_by_severity": severity_counts,
+        "returned_findings_by_rule": returned_counts,
+        "omitted_findings_by_rule": omitted_counts,
         "findings": returned_findings,
         "truncated": any(
-            count > max_per_rule for count in counts.values()
+            omitted > 0 for omitted in omitted_counts.values()
         ),
-
         "notes": [
             "Findings are diagnostic; no database records were changed.",
             "Overdue checks use stored due times and do not apply business calendars.",
-            "Escalation checks use elapsed minutes, not business hours.",
+            "Escalation thresholds are evaluated using business minutes.",
             "A missing escalation match is a potential issue, not definitive proof.",
-            "Only the first 500 findings are returned; finding_count includes all findings.",
+            "Detailed findings are limited to 500 per rule; total counts include omitted findings.",
         ],
     }
