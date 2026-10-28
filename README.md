@@ -1,27 +1,48 @@
-
 # Campus Support AI
+### Policy-Grounded Campus Support, Ticket Tracking & Operational Auditing
 
-An AI-assisted campus support workflow system designed to help students and faculty submit requests, retrieve policy-grounded information, track ticket resolution, and identify routing or service-level issues.
+Campus Support AI is a backend application designed to support student and faculty service requests through policy-grounded information retrieval, ticket tracking, operational metrics, and diagnostic auditing.
 
-## Features
+Built with **FastAPI, PostgreSQL, and SQLAlchemy**, the project demonstrates how campus support workflows can be organized, monitored, and evaluated for routing, policy-source, and service-level issues.
 
-- REST API built with FastAPI
-- PostgreSQL database with SQLAlchemy
-- Ticket listing, filtering, and detail retrieval
-- Knowledge article search and policy-source information
-- Ticket statistics and operational metrics
-- Audit checks for expired citations, unauthorized routing, unsupported responses, overdue tickets, and possible missed escalations
-- Seeded demonstration dataset and data validation
-- Automated API tests using pytest
+## Key Features
+
+- **REST API:** FastAPI endpoints for ticket management, knowledge articles, statistics, and auditing.
+- **Ticket Management:** Retrieve, list, and filter campus support tickets.
+- **Policy & Knowledge Retrieval:** Search knowledge articles and inspect associated policy-source information.
+- **Operational Analytics:** Access ticket statistics and service metrics.
+- **Audit & Traceability:** Identify potential citation, routing, response-support, SLA, and escalation issues.
+- **Data Integrity Validation:** Validate the seeded demonstration dataset and check structural consistency.
+- **Automated Testing:** API tests using pytest and FastAPI's TestClient.
 
 ## Technology Stack
 
-- Python
-- FastAPI
-- PostgreSQL
-- SQLAlchemy
-- pytest
-- HTTPX / FastAPI TestClient
+| Technology | Purpose |
+|---|---|
+| Python | Backend implementation |
+| FastAPI | REST API framework |
+| PostgreSQL | Relational database |
+| SQLAlchemy | Database interaction and ORM |
+| pytest | Automated testing |
+| HTTPX / TestClient | API testing |
+
+## Architecture
+
+The application follows a straightforward backend architecture:
+
+```mermaid
+flowchart TD
+    A[API Client / Swagger UI] --> B[FastAPI Application]
+    B --> C[Ticket and Article Endpoints]
+    B --> D[Statistics and Audit Endpoints]
+    C --> E[SQLAlchemy]
+    D --> E
+    E --> F[(PostgreSQL)]
+    G[Dataset Generator] --> F
+    H[Data Validator] --> F
+```
+
+The API exposes operational data and diagnostic findings, while the database stores the entities used by the workflow. Dataset generation and validation scripts support reproducible demonstrations and integrity checks.
 
 ## Project Structure
 
@@ -42,47 +63,97 @@ campus-support-ai/
 └── README.md
 ```
 
-## Setup
+## Getting Started
 
-1. Install Python and PostgreSQL.
-2. Create a PostgreSQL database named `campus_support_ai`.
-3. Configure the database connection in `backend/.env`.
-4. Open a terminal in the `backend` directory.
-5. Install dependencies:
+### Prerequisites
 
-   ```powershell
-   python -m pip install -r requirements.txt
-   ```
+- Python
+- PostgreSQL
+- Git (optional, for cloning the repository)
 
-6. Create the database tables:
+### 1. Clone the repository
 
-   ```powershell
-   python create_tables.py
-   ```
+```bash
+git clone https://github.com/Aamer10121425/campus-support-ai.git
+cd campus-support-ai
+```
 
-7. Generate the demonstration dataset:
+### 2. Create and activate a virtual environment
 
-   ```powershell
-   python generate_data.py
-   ```
+From the project root:
 
-8. Validate the dataset:
+**Windows — Command Prompt**
 
-   ```powershell
-   python validate_data.py
-   ```
+```cmd
+cd backend
+python -m venv venv
+venv\Scripts\activate.bat
+```
 
-9. Start the API:
+**Windows — PowerShell**
 
-   ```powershell
-   python -m uvicorn app.main:app --reload
-   ```
+```powershell
+cd backend
+python -m venv venv
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-10. Open `http://127.0.0.1:8000/docs` to explore the API.
+If using PowerShell, the commands below can also use `.\venv\Scripts\python.exe` instead of `python`.
 
-Use your virtual environment's Python executable if your environment is not activated.
+### 3. Install dependencies
 
-## API Endpoints
+If your virtual environment is activated:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+### 4. Configure PostgreSQL
+
+Create a PostgreSQL database named `campus_support_ai`.
+
+Configure the database connection using the environment variables expected by `app/db.py`. Store credentials in `backend/.env` if that is how your application is configured. Do not commit real credentials.
+
+### 5. Create the tables
+
+Run from the `backend` directory:
+
+```bash
+python create_tables.py
+```
+
+### 6. Generate demonstration data
+
+```bash
+python generate_data.py
+```
+
+Run this only against a fresh or intentionally reset demonstration database, according to the script's behavior.
+
+### 7. Validate the dataset
+
+```bash
+python validate_data.py
+```
+
+Review the output for structural errors and diagnostic warnings.
+
+### 8. Start the API
+
+```bash
+python -m uvicorn app.main:app --reload
+```
+
+### 9. Explore the API
+
+Once the server is running, open:
+
+- **Swagger UI:** http://127.0.0.1:8000/docs
+- **ReDoc:** http://127.0.0.1:8000/redoc
+
+These interfaces allow you to inspect and exercise the endpoints exposed by the application.
+
+## API Reference
 
 | Method | Endpoint | Purpose |
 |---|---|---|
@@ -96,32 +167,70 @@ Use your virtual environment's Python executable if your environment is not acti
 | GET | `/stats` | Ticket and operational statistics |
 | GET | `/audit` | Run diagnostic audit checks |
 
-## Running Tests
+For available query parameters, request schemas, and response formats, refer to the interactive Swagger documentation at `/docs`.
 
-From the `backend` directory:
+## Audit & Data Validation
 
-```powershell
+The `/audit` endpoint evaluates several classes of potential workflow issues:
+
+- Expired or unpublished article citations
+- Unauthorized ticket routing
+- Responses lacking policy-source support
+- Overdue active tickets
+- Business-hours SLA deadline mismatches
+- Potentially missed escalations
+
+### Audit assumptions and interpretation
+
+- The configured business-hours assumption is Monday through Friday, 09:00–17:00 UTC.
+- The demonstration dataset deliberately contains five planted anomalies.
+- Additional findings, especially broad overdue-ticket and missed-escalation flags, may require investigation before being classified as confirmed violations.
+- Detailed findings are capped at 500 per rule. A `truncated: true` indicator means the response contains only a subset of the detailed findings.
+
+**Important:** Audit results are diagnostic signals, not automatic proof of policy violations. Business hours, routing permissions, escalation thresholds, and policy rules should be verified against the institution's actual requirements before operational use.
+
+## Testing
+
+Run the automated API test suite from the `backend` directory:
+
+```bash
 python -m pytest -v
 ```
 
-The initial test run completed with 8 tests passed.
+**Recorded baseline:** 8 tests passed in the initial test run.
 
-## Audit Rules and Limitations
+This is the baseline result, not a guarantee that every future version passes. Run the suite again after making changes.
 
-The `/audit` endpoint checks for expired or unpublished article citations, unauthorized routing, responses without policy-source support, overdue active tickets, business-hours SLA deadline mismatches, and possible missed escalations.
+## Security & Reliability
 
-The business-hours calculation assumes Monday through Friday, 09:00–17:00 UTC. Confirm these hours and the escalation thresholds against the institution's actual policies before using the findings operationally.
+- Keep `.env` files and database credentials private.
+- Exclude virtual environments, cache files, and other local-only artifacts from version control.
+- Use environment variables for sensitive configuration.
+- Run data validation after generating the demonstration dataset.
+- Review audit findings before taking operational action.
+- Use a properly configured production server and appropriate security controls before any real-world deployment.
 
-The included dataset deliberately contains five planted anomalies for validation and demonstration. Other audit findings are diagnostic flags that may require human review; they should not automatically be treated as confirmed policy violations.
+## Current Scope & Limitations
 
-The audit response reports full finding counts by rule but limits detailed findings to 500 per rule. A `truncated: true` result means additional detailed findings were omitted from the response.
+The current implementation provides a working backend API, PostgreSQL persistence, a seeded demonstration dataset, data-validation checks, operational statistics, diagnostic auditing, and automated API tests.
 
-## Security
+The project is intended as a demonstration of campus support workflow management and policy-source auditing. The presence of policy-grounded retrieval endpoints does not, by itself, establish that a live large language model is integrated.
 
-- Keep `.env` and database credentials private.
-- Do not commit the virtual environment or Python cache files.
-- Configure database credentials through environment variables.
+A production deployment would require institution-specific policy configuration, verified authorization rules, tested escalation thresholds, production-grade security, and operational monitoring.
 
-## Status
+## Future Improvements
 
-The current implementation provides a working backend, a seeded demonstration dataset, data validation, diagnostic audit checks, and automated API tests.
+Potential next steps include:
+
+- A web dashboard for tickets, service metrics, and audit findings
+- More granular role-based access control and routing validation
+- Improved SLA calculations and escalation rules
+- Additional edge-case and integration tests
+- Clearer audit severity levels and remediation guidance
+- Optional LLM integration with source-grounded answers and citation verification
+
+## Project
+
+**Repository:** [Aamer10121425/campus-support-ai](https://github.com/Aamer10121425/campus-support-ai)
+
+**Status:** Backend implementation with database, API tests, demonstration data, and diagnostic auditing.
